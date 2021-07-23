@@ -1,0 +1,203 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        #keyboard{
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 99vw;
+            height: 50px;
+            image-rendering: pixelated;
+        }
+
+        #inputs{
+            position:absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            align-self: center;
+        }
+    </style>
+    <script>
+        let cubehelix = new Uint8Array([0,0,0,1,0,1,5,1,4,8,2,8,10,4,11,13,5,15,16,6,19,18,8,23,20,10,27,21,12,31,23,13,35,24,16,39,25,18,43,25,20,47,26,23,50,26,25,54,26,28,57,26,31,61,26,34,64,25,37,66,25,40,69,24,43,71,24,47,73,23,50,74,22,54,76,22,57,77,21,61,77,21,64,78,21,68,78,20,71,78,20,75,77,21,78,77,21,82,76,22,85,75,23,88,73,24,91,72,25,94,70,27,97,68,29,100,66,31,102,64,34,105,62,37,107,60,40,109,58,43,111,56,47,113,54,51,115,53,56,116,51,61,117,50,66,118,48,71,119,48,76,120,47,82,121,46,88,121,46,93,122,47,99,122,47,106,122,48,112,122,49,118,122,51,124,122,53,130,122,55,136,122,58,142,121,61,148,121,65,154,121,68,160,121,73,165,120,77,170,120,82,175,120,87,180,120,92,184,120,98,188,121,104,192,121,110,195,122,116,199,122,122,201,123,129,204,124,135,206,125,142,208,126,148,209,128,155,210,129,161,211,131,167,212,133,174,212,135,180,212,138,185,212,140,191,211,143,197,211,145,202,210,148,207,209,151,211,207,155,216,206,158,220,205,161,223,203,165,227,202,168,230,201,172,232,199,176,235,198,179,237,197,183,239,196,187,240,195,190,241,194,194,242,193,198,242,193,201,243,193,205,243,193,208,243,193,211,243,194,215,242,195,218,242,196,221,241,197,223,241,198,226,240,200,229,240,202,231,239,205,233,239,207,236,238,210,238,238,213,239,238,216,241,238,220,243,239,223,244,239,227,246,240,230,247,241,234,248,242,238,250,244,242,251,246,245,252,248,249,253,250,253,254,253,255,255,255]);
+        get_cubehelix_color = (v) => {
+            let v_index = Math.floor(v * (cubehelix.length / 3)) * 3;
+            return `rgb(${cubehelix[v_index]},${cubehelix[v_index + 1]},${cubehelix[v_index + 2]})`
+        }
+    </script>
+</head>
+<body>
+
+</body>
+    <div id="inputs">
+
+    </div>
+    <canvas id="keyboard" width="1024px" height="50px"></canvas>
+        <input type="file" id="fileinput">
+        <audio src="" id="audio" controls="controls"></audio> 
+    <script>
+        let keyboard_width = 1024;
+        let keyboard_height = 50;
+        let notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        let frequencies = {
+            "C": 261.63,
+            "C#": 277.18,
+            "D:": 293.66,
+            "D#": 311.13,
+            "E": 329.63,
+            "E#": 349.23,
+            "F": 369.99,
+            "G": 392.00,
+            "G#": 415.30,
+            "A": 440.00,
+            "A#": 466.16,
+            "B": 493.88
+        };
+        let lowest_octave = 1;
+        let highest_octave = 8;
+
+        let frequency_for_octave_and_note = (octave, note) => {
+            let multiplier = Math.pow(2, octave - 4);
+            return frequencies[note] * multiplier;
+        }
+
+        let keyboard_canvas = document.getElementById("keyboard");
+        let keyboard_ctx = keyboard_canvas.getContext('2d');
+        keyboard_canvas.setAttribute("width", keyboard_width + "px");
+        keyboard_canvas.setAttribute("height", keyboard_height + "px");
+
+        let intensities = new Float32Array((highest_octave - lowest_octave + 1) * 12);
+        let keyboard_frequencies = new Float32Array((highest_octave - lowest_octave + 1) * 12);
+        (() => {
+            let i = 0;
+            for(let octave = lowest_octave; octave <= highest_octave; octave++){
+                for(let key of notes){
+                    let freq = frequency_for_octave_and_note(octave, key);
+                    keyboard_frequencies[i] = freq;
+                    //console.log("Note", key + octave, " => ", keyboard_frequencies[i]);
+                    i++;
+                }
+            }
+        })();
+
+        let octave_space = keyboard_width / (highest_octave - lowest_octave + 1);
+        let key_space = octave_space / 12;
+        
+        let redraw_keyboard = () => {
+
+            keyboard_ctx.font = `${Math.ceil(key_space - 2)}px monospace`;
+            keyboard_ctx.textBaseline = 'middle';
+            keyboard_ctx.textAlign = 'center';
+            keyboard_ctx.strokeStyle = "black";
+            for(let octave = lowest_octave; octave <= highest_octave; octave++){
+                let octave_offset = (octave - lowest_octave) * octave_space;
+                for(let key in notes){
+                    let note = notes[key];
+                    let sharp = note.endsWith("#");
+                    let key_offset = (octave_space / 12) * key;
+                    let total_offset = octave_offset + key_offset;
+                    //console.log("Drawing key ", note + octave, " at offset " + total_offset);
+                    if(sharp){
+                        keyboard_ctx.fillStyle = "black";
+                    }else{
+                        keyboard_ctx.fillStyle = "white";
+                    }
+                    keyboard_ctx.strokeRect(total_offset, 0, key_space, keyboard_height);
+                    keyboard_ctx.fillRect(total_offset, 0, key_space, keyboard_height);
+                    keyboard_ctx.save();
+                    if(sharp){
+                        keyboard_ctx.fillStyle = "white";
+                    }else{
+                        keyboard_ctx.fillStyle = "black";
+                    }
+                    let key_center = total_offset + (0.5 * key_space);
+                    keyboard_ctx.translate(key_center, keyboard_height / 2);
+                    keyboard_ctx.rotate(Math.PI * 1.5);
+                    keyboard_ctx.fillText(note + octave, 0,0);
+                    keyboard_ctx.restore();
+                }
+            }
+        }
+        redraw_keyboard();
+
+        document.getElementById("fileinput").addEventListener("change", (e) => {
+            if(e.target.files.length < 1){return;};
+            const urlBlob = URL.createObjectURL(e.target.files[0]);
+            document.getElementById("audio").setAttribute("src", urlBlob);
+        });
+
+        var audio_ctx = new window.AudioContext();
+        var audio_elem = document.getElementById('audio');
+        var audio_source = audio_ctx.createMediaElementSource(audio_elem);
+        var analyzer = audio_ctx.createAnalyser();
+        analyzer.fftSize = 2048;
+        var buffer_len = analyzer.frequencyBinCount;
+        var frequency_data = new Float32Array(buffer_len);
+
+        audio_source.connect(analyzer);
+        audio_source.connect(audio_ctx.destination);
+
+        let intensity_id_for_bin = new Uint32Array(buffer_len);
+        let factors = new Float32Array((highest_octave - lowest_octave + 1) * 12);
+        let useful_max_bin = 0;
+        for(let i = 1; i < buffer_len; i++){
+            let bin_frequency = i * ((audio_ctx.sampleRate / 2) / buffer_len);
+            let best_dist = +Infinity;
+            let best_bin = 0;
+            for(let k = 0; k < keyboard_frequencies.length; k++){
+                let dist = Math.abs(bin_frequency - keyboard_frequencies[k]);
+                if(dist < best_dist){
+                    best_dist = dist;
+                    best_bin = k;
+                }
+            }
+            intensity_id_for_bin[i] = best_bin;
+            console.log("Bin freq", bin_frequency, " => Keyboard Frequency ", keyboard_frequencies[best_bin]);
+            if(useful_max_bin == 0){
+                if(bin_frequency > keyboard_frequencies[keyboard_frequencies.length -1]){
+                    useful_max_bin = i;
+                    break;
+                }
+            }
+            //if(factors[i] == 0)
+            factors[i] ++;
+        }
+        console.log("Max factor", Math.max(...factors), "Min factor", Math.min(...factors));
+        console.log("Useful max bin: ", useful_max_bin);
+        
+        let recalculate_intensities = () => {
+            analyzer.getFloatFrequencyData(frequency_data);
+            for(let i = 0; i < intensities.length; i++){
+                intensities[i] = 0;
+            }
+            for(let i = 1; i < useful_max_bin; i++){
+                if(factors[intensity_id_for_bin] != 0){
+                    intensities[intensity_id_for_bin[i]] += ((-1 * frequency_data[i]) - (-1 * analyzer.minDecibels) / ((-1 * analyzer.maxDecibels) - (-1 * analyzer.minDecibels))) / factors[intensity_id_for_bin[i]] / 250;
+                }
+            }
+            //console.log("Max:", Math.max(...intensities), " Min ", Math.min(...intensities));
+        }
+        
+        let analyzer_gain = 10;
+
+        let redraw_intensities = () => {
+            for(let i = 0; i < intensities.length; i++){
+                keyboard_ctx.fillStyle = get_cubehelix_color(intensities[i]);
+                keyboard_ctx.fillRect(key_space * i, keyboard_height * 0.8, key_space, keyboard_height * 0.2);
+            }
+        }
+
+        let renderLoop = () => {
+            recalculate_intensities();
+            redraw_intensities();
+            requestAnimationFrame(renderLoop);
+        }
+        renderLoop();
+
+
+    </script>
+
+</html>
