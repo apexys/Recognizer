@@ -7,6 +7,7 @@
             display: flex;
             flex-direction: column;
             justify-content:start;
+            font-family: sans-serif;
         }
         #keyboard{
             width: 99vw;
@@ -70,10 +71,10 @@
         }
 
         
-        function color_for_note_and_intensity(note, intensity){
+        function color_for_note_and_intensity(note, intensity, lightening =0){
             const notes = ["C", "C#", "D", "D#", "E", "E#", "F", "G", "G#", "A", "A#", "B"];
-            let i = notes.indexOf(note) / notes.length;
-            let color = hslToRgb(i, 1, 0.5);
+            let i = notes.indexOf(note) / notes.length * 0.8;
+            let color = hslToRgb(i, 1, 0.5 + lightening);
             return `rgb(${Math.round(color[0] * intensity)},${Math.round(color[1] * intensity)},${Math.round(cubehelix[2] * intensity)})`;
         }
 
@@ -84,8 +85,9 @@
 </body>
     <div id="inputs">
         <input type="file" id="fileinput">
+        <span>Speed: <input type="range" max="1" min="0.25" step="0.05" value="1" id="playback_speed"></span>
         <audio src="" id="audio" controls="controls"></audio> 
-        <span>Scaling: <input type="range" max="100" min="1" step="1" value="20" id="scaling_factor"></span>
+        <span>Scaling: <input type="range" max="30" min="1" step="1" value="20" id="scaling_factor"></span>
     </div>
     <canvas id="keyboard" width="1024px" height="50px"></canvas>
     <canvas id="waterfall" width="1024px" height="512px"></canvas>
@@ -158,13 +160,13 @@
                     if(sharp){
                         keyboard_ctx.fillStyle = "black";
                     }else{
-                        keyboard_ctx.fillStyle = "white";
+                        keyboard_ctx.fillStyle = color_for_note_and_intensity(note, 1, 0.25);//"white";
                     }
                     keyboard_ctx.strokeRect(total_offset, 0, key_space, keyboard_height);
                     keyboard_ctx.fillRect(total_offset, 0, key_space, keyboard_height);
                     keyboard_ctx.save();
                     if(sharp){
-                        keyboard_ctx.fillStyle = "white";
+                        keyboard_ctx.fillStyle = color_for_note_and_intensity(note, 1, 0.25);//"white";
                     }else{
                         keyboard_ctx.fillStyle = "black";
                     }
@@ -193,6 +195,10 @@
         analyzer.fftSize = 2048;
         var buffer_len = analyzer.frequencyBinCount;
         var frequency_data = new Float32Array(buffer_len);
+
+        document.getElementById("playback_speed").addEventListener("input", (e) => {
+            audio_elem.playbackRate = parseFloat(e.target.value);
+        });
 
         audio_source.connect(analyzer);
         audio_source.connect(audio_ctx.destination);
