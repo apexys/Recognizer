@@ -37,11 +37,46 @@
         }
     </style>
     <script>
+        function hslToRgb(h, s, l) {
+        var r, g, b;
+
+        if (s == 0) {
+            r = g = b = l; // achromatic
+        } else {
+            function hue2rgb(p, q, t) {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+            }
+
+            var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            var p = 2 * l - q;
+
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+
+        return [ r * 255, g * 255, b * 255 ];
+        }
+
         let cubehelix = new Uint8Array([0,0,0,1,0,1,5,1,4,8,2,8,10,4,11,13,5,15,16,6,19,18,8,23,20,10,27,21,12,31,23,13,35,24,16,39,25,18,43,25,20,47,26,23,50,26,25,54,26,28,57,26,31,61,26,34,64,25,37,66,25,40,69,24,43,71,24,47,73,23,50,74,22,54,76,22,57,77,21,61,77,21,64,78,21,68,78,20,71,78,20,75,77,21,78,77,21,82,76,22,85,75,23,88,73,24,91,72,25,94,70,27,97,68,29,100,66,31,102,64,34,105,62,37,107,60,40,109,58,43,111,56,47,113,54,51,115,53,56,116,51,61,117,50,66,118,48,71,119,48,76,120,47,82,121,46,88,121,46,93,122,47,99,122,47,106,122,48,112,122,49,118,122,51,124,122,53,130,122,55,136,122,58,142,121,61,148,121,65,154,121,68,160,121,73,165,120,77,170,120,82,175,120,87,180,120,92,184,120,98,188,121,104,192,121,110,195,122,116,199,122,122,201,123,129,204,124,135,206,125,142,208,126,148,209,128,155,210,129,161,211,131,167,212,133,174,212,135,180,212,138,185,212,140,191,211,143,197,211,145,202,210,148,207,209,151,211,207,155,216,206,158,220,205,161,223,203,165,227,202,168,230,201,172,232,199,176,235,198,179,237,197,183,239,196,187,240,195,190,241,194,194,242,193,198,242,193,201,243,193,205,243,193,208,243,193,211,243,194,215,242,195,218,242,196,221,241,197,223,241,198,226,240,200,229,240,202,231,239,205,233,239,207,236,238,210,238,238,213,239,238,216,241,238,220,243,239,223,244,239,227,246,240,230,247,241,234,248,242,238,250,244,242,251,246,245,252,248,249,253,250,253,254,253,255,255,255]);
         get_cubehelix_color = (v) => {
             let v_index = Math.floor(v * (cubehelix.length / 3)) * 3;
             return `rgb(${cubehelix[v_index]},${cubehelix[v_index + 1]},${cubehelix[v_index + 2]})`
         }
+
+        
+        function color_for_note_and_intensity(note, intensity){
+            const notes = ["C", "C#", "D", "D#", "E", "E#", "F", "G", "G#", "A", "A#", "B"];
+            let i = notes.indexOf(note) / notes.length;
+            let color = hslToRgb(i, 1, 0.5);
+            return `rgb(${Math.round(color[0] * intensity)},${Math.round(color[1] * intensity)},${Math.round(cubehelix[2] * intensity)})`;
+        }
+
     </script>
 </head>
 <body>
@@ -50,6 +85,7 @@
     <div id="inputs">
         <input type="file" id="fileinput">
         <audio src="" id="audio" controls="controls"></audio> 
+        <span>Scaling: <input type="range" max="100" min="1" step="1" value="20" id="scaling_factor"></span>
     </div>
     <canvas id="keyboard" width="1024px" height="50px"></canvas>
     <canvas id="waterfall" width="1024px" height="512px"></canvas>
@@ -162,7 +198,7 @@
         audio_source.connect(audio_ctx.destination);
 
         let intensity_id_for_bin = new Uint32Array(buffer_len);
-        let factors = new Float32Array((highest_octave - lowest_octave + 1) * 12);
+        let factors = new Float64Array((highest_octave - lowest_octave + 1) * 12);
         let useful_max_bin = 0;
         for(let i = 1; i < buffer_len; i++){
             let bin_frequency = i * ((audio_ctx.sampleRate / 2) / buffer_len);
@@ -188,7 +224,18 @@
         }
         console.log("Max factor", Math.max(...factors), "Min factor", Math.min(...factors));
         console.log("Useful max bin: ", useful_max_bin);
+
+        let scaling_factor = 1 / 10;
+        let useful_min = Math.pow(10, -30 * scaling_factor);
+        let useful_max = Math.pow(10, -100 * scaling_factor);
         
+
+        document.getElementById("scaling_factor").addEventListener("input", (e) => {
+            scaling_factor = 1 / parseFloat(e.target.value);
+            useful_min = Math.pow(10, -30 * scaling_factor);
+            useful_max = Math.pow(10, -100 * scaling_factor);
+        });
+
         let recalculate_intensities = () => {
             analyzer.getFloatFrequencyData(frequency_data);
             for(let i = 0; i < intensities.length; i++){
@@ -196,36 +243,52 @@
             }
             for(let i = 1; i < useful_max_bin; i++){
                 if(factors[intensity_id_for_bin] != 0){
-                    intensities[intensity_id_for_bin[i]] += ((-1 * frequency_data[i]) - (-1 * analyzer.minDecibels) / ((-1 * analyzer.maxDecibels) - (-1 * analyzer.minDecibels))) / factors[intensity_id_for_bin[i]] / 250;
+                    let real_power = Math.pow(10, frequency_data[i] * scaling_factor);
+                    if(isNaN(real_power)){
+                        continue;
+                    }
+                    if(real_power < useful_min){
+                        useful_min = real_power;
+                    }
+                    if(real_power > useful_max){
+                        useful_max = real_power;
+                    }
+                    intensities[intensity_id_for_bin[i]] += real_power * factors[intensity_id_for_bin[i]];
                 }
             }
-            //console.log("Max:", Math.max(...intensities), " Min ", Math.min(...intensities));
+
+            for(let i = 0; i < intensities.length; i++){
+                intensities[i] = (intensities[i] - useful_min) / (useful_max - useful_min);
+            }
+            //console.log("Max:", Math.max(...intensities), " Min ", Math.min(...intensities), "Useful Max", useful_max, "Useful Min", useful_min);
         }
         
         let analyzer_gain = 10;
 
+
         let redraw_intensities = () => {
             for(let i = 0; i < intensities.length; i++){
-                keyboard_ctx.fillStyle = get_cubehelix_color(intensities[i]);
+                keyboard_ctx.fillStyle = color_for_note_and_intensity(notes[i%notes.length], intensities[i]);
                 keyboard_ctx.fillRect(key_space * i, keyboard_height * 0.8, key_space, keyboard_height * 0.2);
             }
         }
 
         let redraw_waterfall = () => {
-            if(document.getElementById('audio').paused){return;}
             //Move 1px down 
             waterfall_ctx.drawImage(waterfall_canvas, 0, 1);
             //Draw new line
             for(let i = 0; i < intensities.length; i++){
-                waterfall_ctx.fillStyle = get_cubehelix_color(intensities[i]);
+                waterfall_ctx.fillStyle = color_for_note_and_intensity(notes[i%notes.length], intensities[i]);
                 waterfall_ctx.fillRect(key_space * i, 0, key_space, 1);
             }
         }
 
         let renderLoop = () => {
-            recalculate_intensities();
-            redraw_intensities();
-            redraw_waterfall();
+            if(!document.getElementById('audio').paused){
+                recalculate_intensities();
+                redraw_intensities();
+                redraw_waterfall();
+            }
             requestAnimationFrame(renderLoop);
         }
         renderLoop();
