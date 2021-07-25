@@ -7,7 +7,9 @@
             display: flex;
             flex-direction: column;
             justify-content:start;
-            font-family: sans-serif;
+            font-family: monospace;
+            background-color: black;
+            color: white;
         }
         #keyboard{
             width: 99vw;
@@ -73,9 +75,9 @@
         
         function color_for_note_and_intensity(note, intensity, lightening =0){
             const notes = ["C", "C#", "D", "D#", "E", "E#", "F", "G", "G#", "A", "A#", "B"];
-            let i = notes.indexOf(note) / notes.length * 0.8;
+            let i = (notes.indexOf(note) / (notes.length - 1));
             let color = hslToRgb(i, 1, 0.5 + lightening);
-            return `rgb(${Math.round(color[0] * intensity)},${Math.round(color[1] * intensity)},${Math.round(cubehelix[2] * intensity)})`;
+            return `rgb(${Math.round(color[0] * intensity)},${Math.round(color[1] * intensity)},${Math.round(color[2] * intensity)})`;
         }
 
     </script>
@@ -93,7 +95,7 @@
     <canvas id="waterfall" width="1024px" height="512px"></canvas>
 
     <script>
-        let keyboard_width = 1024;
+        let keyboard_width = window.innerWidth;//1024;
         let keyboard_height = 50;
         let notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         let frequencies = {
@@ -125,6 +127,8 @@
 
         let waterfall_canvas = document.getElementById("waterfall");
         let waterfall_ctx = waterfall_canvas.getContext('2d');
+        waterfall_canvas.setAttribute("width", keyboard_width + "px");
+        waterfall_canvas.setAttribute("height", (keyboard_width / 2) + "px");
 
         let intensities = new Float32Array((highest_octave - lowest_octave + 1) * 12);
         let keyboard_frequencies = new Float32Array((highest_octave - lowest_octave + 1) * 12);
@@ -157,16 +161,17 @@
                     let key_offset = (octave_space / 12) * key;
                     let total_offset = octave_offset + key_offset;
                     //console.log("Drawing key ", note + octave, " at offset " + total_offset);
+                    const lightening = 0.05;
                     if(sharp){
                         keyboard_ctx.fillStyle = "black";
                     }else{
-                        keyboard_ctx.fillStyle = color_for_note_and_intensity(note, 1, 0.25);//"white";
+                        keyboard_ctx.fillStyle = color_for_note_and_intensity(note, 1, lightening);//"white";
                     }
                     keyboard_ctx.strokeRect(total_offset, 0, key_space, keyboard_height);
                     keyboard_ctx.fillRect(total_offset, 0, key_space, keyboard_height);
                     keyboard_ctx.save();
                     if(sharp){
-                        keyboard_ctx.fillStyle = color_for_note_and_intensity(note, 1, 0.25);//"white";
+                        keyboard_ctx.fillStyle = color_for_note_and_intensity(note, 1, lightening);//"white";
                     }else{
                         keyboard_ctx.fillStyle = "black";
                     }
