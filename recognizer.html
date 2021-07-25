@@ -2,23 +2,38 @@
 <head>
     <meta charset="utf-8">
     <style>
+        body{
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content:start;
+        }
         #keyboard{
-            position: absolute;
-            top: 50px;
-            left: 0;
             width: 99vw;
             height: 50px;
             image-rendering: pixelated;
         }
 
-        #inputs{
-            position:absolute;
-            top: 0;
+        #waterfall{
+            margin: 0;
+            padding: 0;
             left: 0;
+            image-rendering: pixelated;
+            width: 99vw;
+            flex-grow: 1;
+        }
+
+        #inputs{
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
             align-self: center;
+            justify-content: center;
+            width: 100%;
+        }
+        #inputs>*{
+            margin-left: 0.5em;
+            margin-right: 0.5em;
         }
     </style>
     <script>
@@ -33,11 +48,12 @@
 
 </body>
     <div id="inputs">
-
-    </div>
-    <canvas id="keyboard" width="1024px" height="50px"></canvas>
         <input type="file" id="fileinput">
         <audio src="" id="audio" controls="controls"></audio> 
+    </div>
+    <canvas id="keyboard" width="1024px" height="50px"></canvas>
+    <canvas id="waterfall" width="1024px" height="512px"></canvas>
+
     <script>
         let keyboard_width = 1024;
         let keyboard_height = 50;
@@ -68,6 +84,9 @@
         let keyboard_ctx = keyboard_canvas.getContext('2d');
         keyboard_canvas.setAttribute("width", keyboard_width + "px");
         keyboard_canvas.setAttribute("height", keyboard_height + "px");
+
+        let waterfall_canvas = document.getElementById("waterfall");
+        let waterfall_ctx = waterfall_canvas.getContext('2d');
 
         let intensities = new Float32Array((highest_octave - lowest_octave + 1) * 12);
         let keyboard_frequencies = new Float32Array((highest_octave - lowest_octave + 1) * 12);
@@ -123,11 +142,13 @@
         }
         redraw_keyboard();
 
-        document.getElementById("fileinput").addEventListener("change", (e) => {
+        let filechangehandler = (e) => {
             if(e.target.files.length < 1){return;};
             const urlBlob = URL.createObjectURL(e.target.files[0]);
             document.getElementById("audio").setAttribute("src", urlBlob);
-        });
+        }
+        document.getElementById("fileinput").addEventListener("change", filechangehandler);
+        filechangehandler({target: document.getElementById('fileinput')});
 
         var audio_ctx = new window.AudioContext();
         var audio_elem = document.getElementById('audio');
@@ -190,9 +211,21 @@
             }
         }
 
+        let redraw_waterfall = () => {
+            if(document.getElementById('audio').paused){return;}
+            //Move 1px down 
+            waterfall_ctx.drawImage(waterfall_canvas, 0, 1);
+            //Draw new line
+            for(let i = 0; i < intensities.length; i++){
+                waterfall_ctx.fillStyle = get_cubehelix_color(intensities[i]);
+                waterfall_ctx.fillRect(key_space * i, 0, key_space, 1);
+            }
+        }
+
         let renderLoop = () => {
             recalculate_intensities();
             redraw_intensities();
+            redraw_waterfall();
             requestAnimationFrame(renderLoop);
         }
         renderLoop();
